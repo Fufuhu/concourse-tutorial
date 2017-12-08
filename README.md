@@ -184,8 +184,6 @@ initializing
 
 Concourseでは全てのタスクはコンテナーの内部で実行されます。
 `task_hello_world.yml`の設定は`linux`プラットフォーム上で、`busybos`コンテナーイメージを用いてタスクが実行されることを表しています。
-
-
 このコンテナ内部では`echo hello world`のコマンドが実行されます。
 
 ```yaml
@@ -203,7 +201,6 @@ run:
 
 上記の部分が実行された際、`busybox`のDockerイメージをダウンロードするメッセージが表示されます。
 これは一度しか実行する必要はありませんが、毎回より新しい`busybox`イメージが存在しないかを確認します。
-
 最終的に、処理は継続されて`echo hello world`コマンドが成功裏に呼び出されます。
 
 ```
@@ -212,7 +209,6 @@ hello world
 succeeded
 ```
 
-Try changing the `image_resource:` and the `run:` and run a different task:
 試しに`image_resource:`と`run:`を変更して、別のタスクを実行しましょう。
 
 ```yaml
@@ -228,7 +224,6 @@ run:
   args: [-a]
 ```
 
-This task file is provided for convenience:
 忙しい人のための利便性のために、先ほど説明した変更内容を反映した
 `task_ubuntu_uname.yml`ファイルを提供します。
 
@@ -236,7 +231,6 @@ This task file is provided for convenience:
 fly --target tutorial execute --config task_ubuntu_uname.yml
 ```
 
-The output looks like:
 出力は以下のようになります。
 
 ```
@@ -247,22 +241,44 @@ Linux 96f1e0d6-ffdb-40e1-5e8b-5ae9a3b36a58 4.2.0-42-generic #49~14.04.1-Ubuntu S
 succeeded
 ```
 
-The reason that you can select any base `image` (or `image_resource` when [configuring a task](http://concourse.ci/running-tasks.html)) is that this allows your task to have any prepared dependencies that it needs to run. Instead of installing dependencies each time during a task you might choose to pre-bake them into an `image` to make your tasks much faster.
+ベース`image`(または[タスクを設定する際](http://concourse.ci/running-tasks.html)の`image_resource`)を選択できるのは、実行するのに必要な前提条件を持つことを許容しているからである。
+
+タスクの中で毎回前提条件として必要になるものを導入する代わりに、`image`を用いて前提条件を
+充足させておくことでタスクをより高速に実行することを可能にします。
 
 [Go to Top](#concourse-tutorial)
 
 ### 02 - Task inputs
 
-In the previous section the only inputs to the task container were the `image` used. Base images, such as Docker images, are relatively static and relatively big, slow things to create. So Concourse supports `inputs` into tasks to pass in files/folders for processing.
+前のセクションでは、タスクコンテナに対しての入力は利用する`image`のみでした。
+Dockerイメージのようなベースイメージは、比較的静的かつ大きく、作成するのに時間がかかります。
+そこで、Concourseでは`inputs`をファイルやフォルダを処理のためにパスすることをサポートしています。
 
-Consider the working directory of a task that explicitly has no inputs:
+
+以下のように入力の存在しないタスクを考えてみます。
+
+```
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source: {repository: busybox}
+
+run:
+  path: ls
+  args: ['-al']
+
+```
+
+これを実行します。
 
 ```
 cd ../02_task_inputs
 fly --target tutorial execute --config no_inputs.yml
 ```
 
-The task runs `ls -al` to show the (empty) contents of the working folder inside the container:
+タスクでは `ls -al` が実行され、コンテナ内部の空っぽの作業フォルダのなかが表示されます。
 
 ```
 running ls -al
@@ -271,7 +287,26 @@ drwxr-xr-x    2 root     root          4096 Feb 27 07:23 .
 drwxr-xr-x    3 root     root          4096 Feb 27 07:23 ..
 ```
 
-In the example task `inputs_required.yml` we add a single input:
+例としてのタスク`inputs_required.yml`では、一つの入力を追加してみました。
+
+
+```
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source: {repository: busybox}
+
+inputs:
+- name: some-important-input
+
+run:
+  path: ls
+  args: ['-alR']
+```
+
+上記ファイルのこの部分でinputを要求しています。
 
 ```yaml
 inputs:
@@ -280,23 +315,29 @@ inputs:
 
 When we try to execute the task:
 
+タスクを実行しようとすると、
+
 ```
 fly --target tutorial execute --config inputs_required.yml
 ```
 
-It will fail:
+以下のように失敗します。
 
 ```
 error: missing required input `some-important-input`
 ```
 
-Commonly if wanting to run `fly execute` we will want to pass in the local folder (`.`). Use `-i name=path` option to configure each of the required `inputs`:
+一般的に`fly execute`を実行しようとした場合、ローカルフォルダ(`.`)をパスしたいと考えると思います。
+以下のように`-i name=path`オプションで、要求される`inputs`にたいしての設定を行えます。
+
 
 ```
 fly --target tutorial execute --config inputs_required.yml --input some-important-input=.
 ```
 
-Now the `fly execute` command will upload the `.` directory as an input to the container. It will be made available at the path `some-important-input`:
+
+ここで、`fly execute`コマンドでは`.`ディレクトリをコンテナへの入力としてアップロードします。
+そして、`soma-important-input`のパスで利用可能になります。
 
 ```
 running ls -alR
@@ -315,15 +356,16 @@ drwxr-xr-x    3 root     root          4096 Feb 27 07:27 ..
 -rw-r--r--    1 501      20              79 Feb 27 07:18 no_inputs.yml
 ```
 
-To pass in a different directory as an input, provide its absolute or relative path:
+
+別のディレクトリをパスしたい場合は、相対パスを指定します。
 
 ```
 fly --target tutorial execute --config inputs_required.yml --input some-important-input=../01_task_hello_world
 ```
 
-The `fly execute --input ` option can be removed if the current directory is the same name as the required input.
-
-The task `input_parent_dir.yml` contains an input `02_task_inputs` which is also the current directory. So the following command will work and return the same results as above:
+`fly execute --input ` オプションは外すことができます。
+これは要求されている入力とカレントディレクトリの名前が一致する場合です。
+以下のコマンドは先ほど提示したコマンドと同じ結果を返します。
 
 ```
 fly --target tutorial execute --config input_parent_dir.yml
