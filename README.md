@@ -1,8 +1,13 @@
 # Concourse Tutorial
+# Concourseチュートリアル
 
 Learn to use https://concourse.ci with this linear sequence of tutorials. Learn each concept that builds on the previous concept.
 
+https://concourse.ci の使い方を一連のチュートリアルを通じて学びます。
+前の章で学んだコンセプトを使って個別のコンセプトについて学びます。
+
 ## Sections
+## セクション
 
 * [01 - Hello World](#01---hello-world)
 * [02 - Task inputs](#02---task-inputs)
@@ -20,6 +25,8 @@ Learn to use https://concourse.ci with this linear sequence of tutorials. Learn 
 * [14 - Parameterized pipelines](#14---parameterized-pipelines)
 
 The following sections are found in subfolders of this repository and the tutorial continues in their README:
+以下のセクションはこのリポジトリのサブフォルダに見つかります。
+READMEのなかでチュートリアルは続きます。
 
 * [15 - Deploy application to Cloud](15_deploy_cloudfoundry_app/README.md)
 * [16 - Run tests, then deploy application](16_run_tests_before_deploy/README.md)
@@ -52,12 +59,15 @@ Thanks for all the pull requests to help fix regressions with some Concourse ver
 
 ### Mac & Linux
 
-1. Install [Virtualbox](https://www.virtualbox.org/wiki/Downloads).
-2. Install [BOSH CLI v2](https://bosh.io/docs/cli-v2.html#install).
-3. Setup a Single VM concourse using Virtualbox and BOSH.
+1. [Virtualbox](https://www.virtualbox.org/wiki/Downloads) をインストール
+2. [BOSH CLI v2](https://bosh.io/docs/cli-v2.html#install) をインストール
+3. VirtualboxとBOSHを使って単一のVMで構成されたconcourseを構築します。
 
 Download the `concourse-lite` deployment manifest and then have `bosh` create a
 Single VM server running concourse on Virtualbox.
+
+`concourse-lite` デプロイメントマニフェストをダウンロードして `bosh`を用いて
+Virtualbox上の単一のVMサーバを使ったconcourseを実行させます。
 
 ```
 wget https://github.com/concourse/concourse/releases/download/v3.5.0/concourse-lite.yml
@@ -67,6 +77,7 @@ bosh create-env concourse-lite.yml
 ### Windows
 
 1. Use the Vagrant box as a pre-compiled build of a Single VM instance of Concourse.
+1. 事前にコンパイルされたconcourseを含む単一のVMをvagrant boxを用いて準備します。
 
 ```
 git clone https://github.com/starkandwayne/concourse-tutorial.git
@@ -76,6 +87,8 @@ vagrant up
 ```
 
 ### Test Setup
+
+## テストをセットアップします。
 
 Open http://192.168.100.4:8080/ in your browser:
 
@@ -101,20 +114,32 @@ Target Concourse
 
 In the spirit of declaring absolutely everything you do to get absolutely the same result every time, the `fly` CLI requires that you specify the target API for every `fly` request.
 
+毎回同じ結果を得るために、あなたが実行すること全てを絶対に宣言するという精神に基づき、
+the `fly` CLIは `fly`をもちいたリクエストを行うたびにターゲットAPIを特定する必要があります。
+
 First, alias it with a name `tutorial` (this name is used by all the tutorial task scripts):
+
+まず、ターゲットAPI?に対して`tutorial`という別名をつけます。
+
+```
+訳注)
+つまりアクセス先のホストはここで名前をつける。
+さらに、syncを行うことで、アクセス先のホスト上で動作するconcouseのバージョンと
+flyのバージョンを一致させます。
+```
 
 ```
 fly --target tutorial login --concourse-url http://192.168.100.4:8080
 fly --target tutorial sync
 ```
 
-You can now see this saved target Concourse API in a local file:
+ここまでの作業でローカルファイルにConcourse APIのターゲットが保存されます。
 
 ```
 cat ~/.flyrc
 ```
 
-Shows a simple YAML file with the API, credentials etc:
+.flyrcの中身は、アクセス先のAPIや認証情報などが含まれたシンプルなYAMLファイルです。
 
 ```yaml
 targets:
@@ -125,9 +150,13 @@ targets:
       value: ""
 ```
 
+`fly`コマンドを利用する際、このConcourse APIを `fly --target tutorial`とすることで指定します。
 When we use the `fly` command we will target this Concourse API using `fly --target tutorial`.
 
 > @alexsuraci: I promise you'll end up liking it more than having an implicit target state :) Makes reusing commands from shell history much less dangerous (rogue fly configure can be bad)
+
+
+ここから先は個別のチュートリアルとなります。
 
 Tutorials
 ---------
@@ -136,21 +165,28 @@ Tutorials
 
 The central concept of Concourse is to run tasks. You can run them directly from the command line as below, or from within pipeline jobs (as per every other section of the tutorial).
 
+Concourseの中心的なコンセプトはタスクを実行することにあります。
+以下のようにコマンドラインから直接的にタスクを実行することができます。
+またはパイプラインジョブの内部から実行します。
+
 ```
 cd 01_task_hello_world
 fly --target tutorial execute --config task_hello_world.yml
 ```
 
 The output starts with
+出力の冒頭部分は以下のようになります。
 
 ```
 executing build 1
 initializing
 ```
 
-Every task in Concourse runs within a "container" (as best available on the target platform). The `task_hello_world.yml` configuration shows that we are running on a `linux` platform using the `busybox` container image.
+Concourseでは全てのタスクはコンテナーの内部で実行されます。
+`task_hello_world.yml`の設定は`linux`プラットフォーム上で、`busybos`コンテナーイメージを用いてタスクが実行されることを表しています。
 
-Within this container it will run the command `echo hello world`:
+
+このコンテナ内部では`echo hello world`のコマンドが実行されます。
 
 ```yaml
 ---
@@ -165,9 +201,10 @@ run:
   args: [hello world]
 ```
 
-At this point in the output above it is downloading a Docker image `busybox`. It will only need to do this once; though will recheck every time that it has the latest `busybox` image.
+上記の部分が実行された際、`busybox`のDockerイメージをダウンロードするメッセージが表示されます。
+これは一度しか実行する必要はありませんが、毎回より新しい`busybox`イメージが存在しないかを確認します。
 
-Eventually it will continue and invoke the command `echo hello world` successfully:
+最終的に、処理は継続されて`echo hello world`コマンドが成功裏に呼び出されます。
 
 ```
 running echo hello world
@@ -176,6 +213,7 @@ succeeded
 ```
 
 Try changing the `image_resource:` and the `run:` and run a different task:
+試しに`image_resource:`と`run:`を変更して、別のタスクを実行しましょう。
 
 ```yaml
 ---
@@ -191,12 +229,15 @@ run:
 ```
 
 This task file is provided for convenience:
+忙しい人のための利便性のために、先ほど説明した変更内容を反映した
+`task_ubuntu_uname.yml`ファイルを提供します。
 
 ```
 fly --target tutorial execute --config task_ubuntu_uname.yml
 ```
 
 The output looks like:
+出力は以下のようになります。
 
 ```
 executing build 2
