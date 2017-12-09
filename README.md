@@ -377,12 +377,26 @@ fly --target tutorial execute --config input_parent_dir.yml
 
 The `inputs` feature of a task allows us to pass in two types of inputs:
 
+タスクの`inputs`機能によって、二種類の入力をコンテナにパスできることがわかりました。
+
+1. 処理、テスト、コンパイルに必要なものや・依存関係のあるもの
+1. 複雑な振る舞いを実現するために実行されるタスクスクリプト
+
 * requirements/dependencies to be processed/tested/compiled
 * task scripts to be executed to perform complex behavior
 
 A common pattern is for Concourse tasks to `run:` complex shell scripts rather than directly invoking commands as we did above (we ran `uname` command with arguments `-a`).
 
+`run:`をつかって複雑な処理を実行させるほうが、(わたしが`uname`コマンドを`-a`オプションをつけて実行して見せたように)直接、複雑なコマンドを実行するよりは典型的なConcouseタスクになります。
+
+
 Let's refactor `01_task_hello_world/task_ubuntu_uname.yml` into a new task `03_task_scripts/task_show_uname.yml` with a separated task script `03_task_scripts/task_show_uname.sh`
+
+`01_task_hello_world/task_ubuntu_uname.yml`をリファクタして、
+`03_task_scripts/task_show_uname.yml`を作りましょう。
+このスクリプトにはセットとして、`03_task_scripts/task_show_uname.sh`が付いてきます。
+
+その上で以下のように`task_show_uname.yml`を実行します。
 
 ```
 cd ../03_task_scripts
@@ -391,6 +405,8 @@ fly --target tutorial execute --config task_show_uname.yml
 
 The former specifies the latter as its task script:
 
+ymlファイルは以下のようにして.shファイルをymlファイル内に含まれるタスクスクリプトとして実行します。
+
 ```yaml
 run:
   path: ./03_task_scripts/task_show_uname.sh
@@ -398,18 +414,36 @@ run:
 
 _Where does the `./03_task_scripts/task_show_uname.sh` file come from?_
 
+`./03_task_scripts/task_show_uname.sh`ファイルは一体どこからきたのでしょうか。
+
 From section 2 we learned that we could pass `inputs` into the task. The task configuration `03_task_scripts/task_show_uname.yml` specifies one input:
+
+セクション2で我々は`inputs`をタスクにパスできることを学びました。
+`03_task_scripts/task_show_unam.yml`では一つの入力を指定しています。
 
 ```
 inputs:
 - name: 03_task_scripts
 ```
 
+ここで03_task_scriputsをinputsとして指定しています。
+これによって、`03_task_scripts`はカレントディレクトリと一致するので、
+`fly execute --inpute 03_task_scripts=.`のような形で、inputsを指定する必要はありません。
+
 Since input `03_task_scripts` matches the current directory `03_task_scripts` we did not need to specify `fly execute --input 03_task_scripts=.`.
+
+
+現在のディレクトリがConcourseのタスクコンテナにアップロードされ、`03_task_scripts`ディレクトリに
+配置されます。
 
 The current directory was uploaded to the Concourse task container and placed inside the `03_task_scripts` directory.
 
+したがって、`task_show_uname.sh`ファイルをConcourseタスクコンテナの内部で`03_task_scripts/task_show_uname.sh`として指定の上実行することができるようになります。
+
 Therefore its file `task_show_uname.sh` is available within the Concourse task container at `03_task_scripts/task_show_uname.sh`.
+
+追加でさらに必要にるのは、`task_show_uname.sh`です。
+これは、実行可能なスクリプトとなっています。
 
 The only further requirement is that `task_show_uname.sh` is an executable script.
 
@@ -417,12 +451,18 @@ The only further requirement is that `task_show_uname.sh` is an executable scrip
 
 ### 04 - Basic pipeline
 
+
+`fly execute`で実行されるタスクは全体の1%です。残りの99%のタスクはパイプラインの中で実行されます。
+
 1% of tasks that Concourse runs are via `fly execute`. 99% of tasks that Concourse runs are within "pipelines".
 
 ```
 cd ../04_basic_pipeline
 fly --target tutorial set-pipeline --config pipeline.yml --pipeline helloworld
 ```
+
+上記コマンドではConcourseのパイプライン(またはその変更内容)が表示され、
+確認を促されます。
 
 It will display the concourse pipeline (or any changes) and request confirmation:
 
@@ -445,13 +485,21 @@ jobs:
           dir: ""
 ```
 
+設定ファイルに変更があると、
+`fly set-pipeline`(またはそのエイリアスである`fly sp`)を実行するたびに
+設定の変更を適用することを促されます。
+
 You will be prompted to apply any configuration changes each time you run `fly set-pipeline` (or its alias `fly sp`)
 
 ```
 apply configuration? [yN]:
 ```
 
+
+`y`を押しましょう。
 Press `y`.
+
+すると以下のように表示されます。
 
 You should see:
 
@@ -466,17 +514,35 @@ the pipeline is currently paused. to unpause, either:
 
 As suggested, un-pause a pipeline from the `fly` CLI:
 
+メッセージ中に記載されている通り、`fly` CLIを使ってパイプラインの実行を再開します。
+
 ```
 fly --target tutorial unpause-pipeline --pipeline helloworld
 ```
 
+
+次は、メッセージ中で促された通り、web UIにアクセスします。
+
 Next, as suggested, visit the web UI http://192.168.100.4:8080/pipelines/helloworld.
 
+最初のパイプラインはなんということはないものです。
+`job-hello-world`という単一のジョブは入力ジョブも出力ジョブも持っていません。
+また、ジョブ単独としても、なんの入力も持っていません。
+
+これは最も基本的なパイプラインです。
+まだ実行されたことがないので、グレーカラーのままです。
+
 Your first pipeline is unimpressive - a single job `job-hello-world` with no inputs from the left and no outputs to its right, no jobs feeding into it, nor jobs feeding from it. It is the most basic pipeline. The job is gray colour because it has never been run before.
+
+`job-hello-world`をクリックして大きな`+`をクリックするとジョブが実行されます。
 
 Click on `job-hello-world` and then click on the large `+` in the top right corner. Your job will run.
 
 ![job](http://cl.ly/image/3i2e0k0v3O2l/02-job-hello-world.gif)
+
+最上部の"Home"アイコンをクリックすると、パイプラインの状態が表示されます。
+`job-hello-world`ジョブは現在グリーンです。
+これは、ジョブの実行が成功したことを表します。
 
 Clicking the top-left "Home" icon will show the status of our pipeline. The job `job-hello-world` is now green. This means that the last time the job ran it completed successfully.
 
