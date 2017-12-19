@@ -550,21 +550,54 @@ Clicking the top-left "Home" icon will show the status of our pipeline. The job 
 
 ### 05 - Tasks extracted into Resources
 
+`pipeline.yml`内でジョブのタスクを定義することでパイプラインを繰り返し実行することが容易になりました。
+`pipeline.yml`を編集して、`fly set-pipeline`を実行することでパイプライン全体を即時アップデートすることができます。
+
 It is very fast to iterate on a job's tasks by configuring them in the `pipeline.yml` as above. You edit the `pipeline.yml`, run `fly set-pipeline`, and the entire pipeline is updated atomically.
+
+しかし、セクション3で述べた通り、タスクが複雑化すると、`run:`コマンドがタスクスクリプトに切り出されます。
+さらに、タスクそのものも`yml`タスクファイルに出力されるようになります。
 
 But, as per section 3, if a task becomes complex then its `run:` command can be extracted into a task script, and the task itself can be extracted into a `yml` task file.
 
+セクション3では、`fly execute`コマンドを用いてローカルのコンピュータからタスクスクリプトとタスクファイルをアップロードしていました。
+
 In section 3 we uploaded the task file and task script from our local computer with the `fly execute` command.
+
+セクション3と異なり、パイプラインではConcourse外部のどこかにタスクファイルとスクリプトを保管しておく
+必要があります。
 
 Unlike section 3, with a pipeline we now need to store the task file and task script somewhere outside of Concourse.
 
+データを保管/回収するためのサービスをConcourseは提供しません。
+gitリポジトリもなければblogストアもありません。ビルドナンバーもないです。
+全ての入力と出力は外部から提供される必要があります。
+Concourseではそれらを"Resources"と呼んでいます。
+例えばリソースとしては、`git`、`s3`、`semver`といったものがgitリポジトリ、blobストア、ビルドナンバー
+に対応するものとして存在します。
+
 Concourse offers no services for storing/retrieving your data. No git repositories. No blobstores. No build numbers. Every input and output must be provided externally. Concourse calls them "Resources". Example resources are `git`, `s3` and `semver` respectively.
+
+後述の"利用可能な concourse resourceのリスト"のセクションには、利用可能な built-in resourceと
+コミュニティresourceの見つけ方が記載されています。
+例えばslackにメッセージを送ったり、バージョン番号を0.5.6から1.0.0に付け替えるためのもの、
+Pivotal Trackerにチケットを作成したりといったものも含みます。
+
 
 See the section "Available concourse resources" below for the list of available built-in resources and how to find community resources. Send messages to Slack. Bump a version number from 0.5.6 to 1.0.0. Create a ticket on Pivotal Tracker. It is all possible with Concourse resources.
 
+`git`リソースはタスクファイルとタスクスクリプトを保管するための最も一般的なリソースです。
+
 The most common resource to store our task files and task scripts is the `git` resource.
 
+このチュートリアルのソースリポジトリはGitリポジトリです。
+そして、大量のタスクファイルとタスクスクリプトを含んでいます。
+例えば、最初に実行した`01_task_hello_world/task_hello_world.yml`などです。
+
 This tutorial's source repository is a Git repo, and it contains many task files (and their task scripts). For example, the original `01_task_hello_world/task_hello_world.yml`.
+
+次のパイプラインでは、タスクファイルを読み込んでそれを実行するような形になっています。
+ここでは、先ほどの`helloworld`パイプラインをアップデートするようになっています。
 
 The following pipeline will load this task file and run it. We will update the previous `helloworld` pipeline:
 
@@ -572,6 +605,9 @@ The following pipeline will load this task file and run it. We will update the p
 cd ../05_pipeline_task_hello_world
 fly set-pipeline --target tutorial --config pipeline.yml --pipeline helloworld
 ```
+
+このコマンドを実行すると2つのパイプラインの差分が表示されます。
+`y`をタイプして成功したら設定がアップデートされた胸のメッセージが表示されます。
 
 The output will show the delta between the two pipelines and request confirmation. Type `y`. If successful, it will show:
 
@@ -582,11 +618,23 @@ configuration updated
 
 The [`helloworld` pipeline](http://192.168.100.4:8080/pipelines/helloworld) now shows an input resource `resource-tutorial` feeding into the job `job-hello-world`.
 
+[`helloworld` pipeline](http://192.168.100.4:8080/pipelines/helloworld) では、
+この時点で、`resource-turorial`が`job-hello-world`ジョブへの入力リソースとして流入していることが
+表示されます。
+
 ![pipeline-task-hello-world](http://cl.ly/image/271z3T322l25/03-resource-job.gif)
 
 This tutorial verbosely prefixes `resource-` to resource names, and `job-` to job names, to help you identify one versus the other whilst learning. Eventually you will know one from the other and can remove the extraneous text.
 
+このチュートリアルでは、`resource-`という接頭語をリソース名につけて冗長になっています。
+そして`job-`という接頭語をジョブにはつけています。
+これによって個々の要素を区別して学ぶことを容易にしています。
+最終的には、あなたは個々の要素を区別できるようになると思うので、その時に余分なテキストを除去しましょう。
+
 After manually triggering the job via the UI, the output will look like:
+
+UIからジョブを手動で実行した後に、出力はこのようになります。
+
 
 ![job-task-from-task](http://cl.ly/image/0Q3m223v2l3M/job-task-from-task.png)
 
